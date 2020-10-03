@@ -2,7 +2,8 @@ import {inject} from '@loopback/core';
 import {HttpErrors} from '@loopback/rest';
 import {securityId, UserProfile} from '@loopback/security';
 import {promisify} from 'util';
-import {TokenServiceBindings} from '../keys';
+import {TokenServiceBindings} from '../authentication/keys';
+import {Credentials} from '../repositories/user.repository';
 const jwt = require('jsonwebtoken');
 const signAsync = promisify(jwt.sign);
 const verifyAsync = promisify(jwt.verify);
@@ -24,6 +25,23 @@ export class JWTService {
     let token = '';
     try {
       token = await signAsync(userProfile, this.jwtSecret, {
+        expiresIn: this.expiresSecret,
+      });
+      return token;
+    } catch (err) {
+      throw new HttpErrors.Unauthorized(`error generating token ${err}`);
+    }
+  }
+
+  async generateTokenForNewUser(credential: Credentials): Promise<string> {
+    if (!credential) {
+      throw new HttpErrors.Unauthorized(
+        'Error while generating token :credentials is incorrect',
+      );
+    }
+    let token = '';
+    try {
+      token = await signAsync(credential, this.jwtSecret, {
         expiresIn: this.expiresSecret,
       });
       return token;

@@ -15,7 +15,8 @@ import {
   PasswordHasherBindings,
   TokenServiceBindings,
   UserServiceBindings,
-} from '../keys';
+} from '../authentication/keys';
+import {CredentialsRequestBody} from '../authentication/types';
 import {User} from '../models';
 import {Credentials, UserRepository} from '../repositories';
 import {BcryptHasher} from '../services/hash.password';
@@ -39,7 +40,7 @@ export class UserController {
     public jwtService: JWTService,
   ) {}
 
-  @post('/users', {
+  @post('/auth/create-user', {
     responses: {
       '200': {
         description: 'User model instance',
@@ -58,15 +59,28 @@ export class UserController {
       },
     })
     userData: User,
-  ): Promise<User> {
+  ): Promise<object> {
     validateCredentials(_.pick(userData, ['email', 'password']));
+
+    const credentials = _.pick(userData, ['email', 'password']);
+
+    const token = await this.jwtService.generateTokenForNewUser(credentials);
+
     userData.password = await this.hasher.hashPassword(userData.password);
     const savedUser = await this.userRepository.create(userData);
     savedUser.password = '';
-    return savedUser;
+
+    return {
+      status: 'success',
+      data: {
+        message: 'User account successfully created',
+        userId: savedUser.id,
+        token,
+      },
+    };
   }
 
-  @post('/login', {
+  @post('/auth/signin', {
     responses: {
       '200': {
         description: 'Token',
@@ -86,16 +100,23 @@ export class UserController {
     },
   })
   async login(
-    @requestBody() credentials: Credentials,
-  ): Promise<{token: string}> {
+    @requestBody(CredentialsRequestBody) credentials: Credentials,
+  ): Promise<object> {
     // make sure user exist,password should be valid
     const user = await this.userService.verifyCredentials(credentials);
     // console.log(user);
-    const userProfile = await this.userService.convertToUserProfile(user);
+    const userProfile = this.userService.convertToUserProfile(user);
     // console.log(userProfile);
-
     const token = await this.jwtService.generateToken(userProfile);
-    return Promise.resolve({token: token});
+    return {
+      status: 'success',
+      data: {
+        userId: userProfile.id,
+        token,
+      },
+    };
+
+    // return Promise.resolve({token: token});
   }
 
   @authenticate('jwt')

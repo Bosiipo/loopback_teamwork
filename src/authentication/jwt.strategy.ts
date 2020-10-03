@@ -1,24 +1,38 @@
 import {AuthenticationStrategy} from '@loopback/authentication';
 import {inject} from '@loopback/core';
-import {HttpErrors, RedirectRoute} from '@loopback/rest';
+import {HttpErrors, Request} from '@loopback/rest';
 import {UserProfile} from '@loopback/security';
-import {Request} from 'express';
 import {ParamsDictionary} from 'express-serve-static-core';
 import {ParsedQs} from 'qs';
-import {TokenServiceBindings} from '../keys';
 import {JWTService} from '../services/jwt.service';
+import {TokenServiceBindings} from './keys';
+// import { Request } from "@loopback/rest";
 
 export class JWTStrategy implements AuthenticationStrategy {
   name = 'jwt';
   @inject(TokenServiceBindings.TOKEN_SERVICE)
   public jwtService: JWTService;
+  // @inject(RestBindings.Http.REQUEST) public req,
 
-  async authenticate(
-    request: Request<ParamsDictionary, any, any, ParsedQs>,
-  ): Promise<UserProfile | RedirectRoute | undefined> {
+  // async authenticate(
+  //   request: Request<ParamsDictionary, any, any, ParsedQs>,
+  // ): Promise<UserProfile | RedirectRoute | undefined> {
+  //   const token: string = this.extractCredentials(request);
+  //   const userProfile = await this.jwtService.verifyToken(token);
+  //   console.log(userProfile);
+  //   // request.userData = userProfile;
+  //   return Promise.resolve(userProfile);
+  // }
+  async authenticate(request: Request): Promise<UserProfile | undefined> {
     const token: string = this.extractCredentials(request);
-    const userProfile = await this.jwtService.verifyToken(token);
-    return Promise.resolve(userProfile);
+    try {
+      const user: UserProfile = await this.jwtService.verifyToken(token);
+      // console.log(user);
+      return user;
+    } catch (err) {
+      Object.assign(err, {code: 'INVALID_ACCESS_TOKEN', statusCode: 401});
+      throw err;
+    }
   }
 
   extractCredentials(

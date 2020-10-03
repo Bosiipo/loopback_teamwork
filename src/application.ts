@@ -19,7 +19,7 @@ import {
   TokenServiceBindings,
   TokenServiceConstants,
   UserServiceBindings,
-} from './keys';
+} from './authentication/keys';
 import {MySequence} from './sequence';
 import {BcryptHasher} from './services/hash.password';
 import {JWTService} from './services/jwt.service';
